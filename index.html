@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>My Voice → Video</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;color:#333;overflow-x:hidden}
+        .container{max-width:100%;margin:0 auto;padding:10px;flex:1}
+        .header{text-align:center;color:white;margin-bottom:15px;padding:20px 0}
+        .header h1{font-size:clamp(1.5em,6vw,2.2em);margin-bottom:5px;text-shadow:0 2px 10px rgba(0,0,0,0.3)}
+        .header p{font-size:clamp(0.8em,3.5vw,1em);opacity:0.9;font-weight:500}
+        .card{background:rgba(255,255,255,0.95);backdrop-filter:blur(15px);border-radius:18px;padding:20px;margin-bottom:15px;box-shadow:0 15px 35px rgba(0,0,0,0.15);border:1px solid rgba(255,255,255,0.3)}
+        .card h2{margin-bottom:15px;color:#4a5568;font-size:clamp(1.1em,4vw,1.4em);display:flex;align-items:center;gap:8px}
+        label{display:block;margin-bottom:6px;font-weight:600;color:#4a5568;font-size:0.9em}
+        textarea{width:100%;height:100px;padding:12px;border:2px solid #e2e8f0;border-radius:12px;font-size:16px;line-height:1.4;resize:vertical;transition:all .3s}
+        textarea:focus{outline:none;border-color:#667eea;box-shadow:0 0 0 3px rgba(102,126,234,.1)}
+        .btn{width:100%;padding:15px;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;transition:all .3s;touch-action:manipulation;margin:5px 0}
+        .record{background:linear-gradient(135deg,#f56565,#e53e3e);color:white}
+        .record.recording{background:linear-gradient(135deg,#48bb78,#38a169);animation:pulse 1s infinite}
+        .record:active{transform:scale(.98)}
+        .generate{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;text-transform:uppercase;letter-spacing:.5px}
+        .generate:disabled{opacity:.6;cursor:not-allowed}
+        .download{background:linear-gradient(135deg,#48bb78,#38a169);color:white;display:none}
+        .download:active{transform:scale(.98)}
+        video{width:100%;max-height:45vh;border-radius:12px;background:#000;display:block}
+        audio{width:100%;margin:10px 0;border-radius:8px}
+        .status{padding:10px 14px;border-radius:10px;margin:10px 0;font-weight:600;font-size:0.9em;text-align:center;display:none}
+        .status.success{background:#c6f6d5;color:#22543d;border:1px solid #9ae6b4;animation:pulse 2s infinite}
+        .status.error{background:#fed7d7;color:#742a2a;border:1px solid #fc8181}
+        .status.processing{background:#bee3f8;color:#2c5282;border:1px solid #90cdf4}
+        .recording-indicator{position:absolute;top:10px;right:10px;background:#f56565;color:white;padding:5px 10px;border-radius:20px;font-size:12px;font-weight:700}
+        .waveform{display:flex;gap:4px;margin:10px 0;height:30px;align-items:end;padding:10px;background:#f7fafc;border-radius:8px}
+        .wave{flex:1;background:#e2e8f0;border-radius:4px;transition:height .1s}
+        .wave.active{background:linear-gradient(135deg,#667eea,#764ba2)}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+        .section{margin-bottom:15px}
+        @media (max-width:480px){.container{padding:8px}.card{padding:18px 15px}}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎙️ My Voice → Video</h1>
+            <p>Record YOUR voice + beautiful animations!</p>
+        </div>
+        
+        <div class="card">
+            <h2>📝 Text</h2>
+            <textarea id="text" placeholder="What you will say... (helps with timing)">Hello! This is my voice. Watch the beautiful animations while I speak! ✨"></textarea>
+        </div>
+
+        <div class="card">
+            <h2>🎤 Record Your Voice</h2>
+            <div class="section">
+                <button class="btn record" id="recordBtn">🔴 Hold to Record</button>
+                <div class="recording-indicator" id="recIndicator" style="display:none">Recording...</div>
+            </div>
+            <div class="section">
+                <audio id="audioPreview" controls style="display:none"></audio>
+                <div class="waveform" id="waveform" style="display:none">
+                    <div class="wave" style="height:8px"></div>
+                    <div class="wave" style="height:12px"></div>
+                    <div class="wave" style="height:16px"></div>
+                    <div class="wave" style="height:20px"></div>
+                    <div class="wave" style="height:14px"></div>
+                    <div class="wave" style="height:18px"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>⚡ Create Video</h2>
+            <button class="btn generate" id="generate">✨ Make My Video</button>
+            <div class="status" id="status"></div>
+            <div class="progress" id="progress" style="display:none">
+                <div class="progress-bar" style="height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden">
+                    <div class="progress-fill" id="prog" style="height:100%;background:linear-gradient(90deg,#667eea,#764ba2);width:0%;transition:width .4s"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>🎥 My Video</h2>
+            <video id="video" controls playsinline></video>
+            <button class="btn download" id="download" style="display:none">💾 Download My Video</button>
+        </div>
+    </div>
+
+    <script>
+        class MyVoiceVideo {
+            constructor() {
+                this.textEl = document.getElementById('text');
+                this.recordBtn = document.getElementById('recordBtn');
+                this.recIndicator = document.getElementById('recIndicator');
+                this.audioPreview = document.getElementById('audioPreview');
+                this.waveform = document.getElementById('waveform');
+                this.generateBtn = document.getElementById('generate');
+                this.downloadBtn = document.getElementById('download');
+                this.statusEl = document.getElementById('status');
+                this.progress = document.getElementById('progress');
+                this.prog = document.getElementById('prog');
+                this.video = document.getElementById('video');
+                
+                this.mediaRecorder = null;
+                this.audioChunks = [];
+                this.audioBlob = null;
+                this.isRecording = false;
+                this.canvas = document.createElement('canvas');
+                this.ctx = this.canvas.getContext('2d');
+                
+                this.init();
+            }
+
+            init() {
+                this.setupRecording();
+                this.generateBtn.onclick = () => this.createVideo();
+                this.downloadBtn.onclick = () => this.downloadVideo();
+            }
+
+            setupRecording() {
+                this.recordBtn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    this.startRecording();
+                }, { passive: false });
+
+                this.recordBtn.addEventListener('mousedown', (e) => {
+                    this.startRecording();
+                });
+
+                ['touchend', 'touchcancel', 'mouseup', 'mouseleave'].forEach(event => {
+                    this.recordBtn.addEventListener(event, (e) => {
+                        e.preventDefault();
+                        this.stopRecording();
+                    }, { passive: false });
+                });
+            }
+
+            async startRecording() {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        audio: { 
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            sampleRate: 44100
+                        } 
+                    });
+                    
+                    this.mediaRecorder = new MediaRecorder(stream);
+                    this.audioChunks = [];
+                    
+                    this.mediaRecorder.ondataavailable = (e) => this.audioChunks.push(e.data);
+                    this.mediaRecorder.onstop = () => {
+                        this.audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+                        this.showAudioPreview();
+                        stream.getTracks().forEach(track => track.stop());
+                    };
+
+                    this.mediaRecorder.start();
+                    this.isRecording = true;
+                    this.recordBtn.textContent = '⏹️ Release to Stop';
+                    this.recordBtn.classList.add('recording');
+                    this.recIndicator.style.display = 'block';
+                    
+                    // Animate waveform
+                    this.animateWaveform();
+                } catch (err) {
+                    this.status('🎤 Allow microphone access!', 'error');
+                }
+            }
+
+            stopRecording() {
+                if (this.isRecording && this.mediaRecorder) {
+                    this.mediaRecorder.stop();
+                    this.isRecording = false;
+                    this.recordBtn.textContent = '🔴 Hold to Record';
+                    this.recordBtn.classList.remove('recording');
+                    this.recIndicator.style.display = 'none';
+                }
+            }
+
+            showAudioPreview() {
+                if (this.audioBlob) {
+                    this.audioPreview.src = URL.createObjectURL(this.audioBlob);
+                    this.audioPreview.style.display = 'block';
+                    this.waveform.style.display = 'flex';
+                    this.status('✅ Audio recorded! 🎉', 'success');
+                }
+            }
+
+            animateWaveform() {
+                const waves = this.waveform.querySelectorAll('.wave');
+                let i = 0;
+                const animate = () => {
+                    if (this.isRecording) {
+                        waves.forEach((wave, idx) => {
+                            let height = 8 + Math.sin(i * 0.2 + idx) * 12;
+                            wave.style.height = height + 'px';
+                            wave.classList.toggle('active', Math.random() > 0.3);
+                        });
+                        i++;
+                        requestAnimationFrame(animate);
+                    }
+                };
+                animate();
+            }
+
+            status(msg, type = 'success', time = 2500) {
+                this.statusEl.textContent = msg;
+                this.statusEl.className = `status ${type}`;
+                this.statusEl.style.display = 'block';
+                setTimeout(() => this.statusEl.style.display = 'none', time);
+            }
+
+            prog(p) {
+                this.prog.style.width = Math.min(100, p) + '%';
+            }
+
+            async createVideo() {
+                if (!this.audioBlob) {
+                    return this.status('🎤 Record your voice first!', 'error');
+                }
+
+                let text = this.textEl.value.trim();
+                if (!text) text = 'My voice video';
+
+                this.generateBtn.disabled = true;
+                this.generateBtn.textContent = '🎥 Creating...';
+                this.status('✨ Making video with YOUR voice...', 'processing');
+                this.progress.style.display = 'block';
+                this.prog(10);
+
+                try {
+                    this.prog(40);
+                    // Generate video frames
+                    let videoBlob = await this.generateVideoFrames(text);
+                    this.prog(80);
+
+                    // Combine audio + video
+                    let finalVideo = await this.combineAudioVideo(videoBlob, this.audioBlob);
+                    this.prog(100);
+
+                    this.video.src = URL.createObjectURL(finalVideo);
+                    this.downloadBtn.style.display = 'block';
+                    this.status('🎉 YOUR voice video ready!', 'success');
+                    this.video.play().catch(() => {});
+                } catch (e) {
+                    this.status('❌ Try again - shorter recording?', 'error');
+                } finally {
+                    this.generateBtn.disabled = false;
+                    this.generateBtn.textContent = '✨ Make My Video';
+                    setTimeout(() => this.progress.style.display = 'none', 1500);
+                }
+            }
+
+            async generateVideoFrames(text) {
+                return new Promise(resolve => {
+                    let size = Math.min(640, window.innerWidth * 1.3);
+                    this.canvas.width = size;
+                    this.canvas.height = size * 0.5625;
+                    let fps = 24, duration = 8, totalFrames = duration * fps;
+                    let frames = [];
+
+                    let frame = 0;
+                    const animate = () => {
+                        this.drawFrame(frame, totalFrames, text);
+                        frames.push(this.canvas.toDataURL('image/webp', 0.8));
+                        frame++;
+                        if (frame < totalFrames) {
+                            requestAnimationFrame(animate);
+                        } else {
+                            this.framesToVideo(frames).then(resolve);
+                        }
+                    };
+                    animate();
+                });
+            }
+
+            drawFrame(frame, total, text) {
+                let { width: w, height: h } = this.canvas;
+
+                // Beautiful gradient background
+                let grad = this.ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, w);
+                grad.addColorStop(0, '#2d3748');
+                grad.addColorStop(0.3, '#1a202c');
+                grad.addColorStop(1, '#0f1419');
+                this.ctx.fillStyle = grad;
+                this.ctx.fillRect(0, 0, w, h);
+
+                // Floating particles
+                for (let i = 0; i < 40; i++) {
+                    let x = (frame * 0.5 + i * 137) % w;
+                    let y = (frame * 0.3 + i * 239) % h;
+                    let size = 1.5 + Math.sin(frame * 0.1 + i) * 1;
+                    let alpha = 0.3 + Math.sin(frame * 0.05 + i) * 0.2;
+                    this.ctx.fillStyle = `rgba(102,126,234,${alpha})`;
+                    this.ctx.beginPath();
+                    this.ctx.arc(x, y, size, 0, Math.PI * 2);
+                    this.ctx.fill();
+                }
+
+                // Title
+                this.ctx.save();
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+                this.ctx.shadowColor = 'rgba(0,0,0,0.8)';
+                this.ctx.shadowBlur = 15;
+                this.ctx.font = `bold ${Math.min(80, h * 0.11)}px sans-serif`;
+                
+                let titleGrad = this.ctx.createLinearGradient(w/2 - 200, h * 0.28, w/2 + 200, h * 0.28);
+                titleGrad.addColorStop(0, '#667eea');
+                titleGrad.addColorStop(0.5, 'white');
+                titleGrad.addColorStop(1, '#764ba2');
+                this.ctx.fillStyle = titleGrad;
+                this.ctx.fillText('My Voice', w/2, h * 0.28);
+
+                // Animated text
+                this.ctx.font = `${Math.min(52, h * 0.08)}px sans-serif`;
+                this.ctx.shadowBlur = 8;
+                this.ctx.fillStyle = '#e2e8f0';
+
+                let words = text.split(' ');
+                let y = h * 0.45;
+                let line = '';
+                for (let word of words) {
+                    let test = line + ' ' + word;
+                    if (this.ctx.measureText(test).width > w * 0.85 && line !== '') {
+                        let pulse = Math.sin(frame * 0.12 + y * 0.01) * 0.3 + 0.7;
+                        this.ctx.globalAlpha = pulse;
+                        this.ctx.fillText(line.trim(), w/2, y);
+                        line = word;
+                        y += h * 0.09;
+                    } else {
+                        line = test;
+                    }
+                }
+                if (line) {
+                    let pulse = Math.sin(frame * 0.12 + y * 0.01) * 0.3 + 0.7;
+                    this.ctx.globalAlpha = pulse;
+                    this.ctx.fillText(line.trim(), w/2, y);
+                }
+                this.ctx.restore();
+
+                // Voice waveform
+                this.ctx.strokeStyle = '#48bb78';
+                this.ctx.lineWidth = 3;
+                this.ctx.lineCap = 'round';
+                this.ctx.shadowColor = '#48bb78';
+                this.ctx.shadowBlur = 10;
+                this.ctx.beginPath();
+                for (let x = 0; x < w; x += 5) {
+                    let wave = Math.sin(x * 0.04 + frame * 0.4) * 35 * (1 - x / w);
+                    let y = h * 0.88 + wave;
+                    x === 0 ? this.ctx.moveTo(x, y) : this.ctx.lineTo(x, y);
+                }
+                this.ctx.stroke();
+            }
+
+            async framesToVideo(frames) {
+                let canvas = this.canvas;
+                let stream = canvas.captureStream(24);
+                let rec = new MediaRecorder(stream, 'video/webm');
+                let chunks = [];
+
+                rec.ondataavailable = e => chunks.push(e.data);
+                rec.onstop = () => new Blob(chunks, { type: 'video/webm' });
+
+                rec.start();
+                let frameIdx = 0;
+                let drawNext = () => {
+                    if (frameIdx < frames.length) {
+                        let img = new Image();
+                        img.onload = () => {
+                            this.ctx.drawImage(img, 0, 0);
+                            frameIdx++;
+                            requestAnimationFrame(drawNext);
+                        };
+                        img.src = frames[frameIdx];
+                    } else {
+                        rec.stop();
+                    }
+                };
+                drawNext();
+
+               
